@@ -1,48 +1,46 @@
 # Example file showing a circle moving on screen
 import pygame
 import random as r
-import time
 
 # pygame setup
 pygame.init()
+pygame.font.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
 running = True
+canPop = True
 dt = 0
-timeElapsed = 0
-startTime = 0
-speed = 4.6
+speed = 5
 velocity = [0,0]
 appleCount = 0
 cellSize = 80
-pygame.font.init()
-tolerance = 40
-direc = [0]
+direc = [1,0]
+bodyCountPerFrame = 2
 
 
-# ideas for later
-# basically, save the last input into a list and have it check each time in update
-# once it reaches  a junction, go the cardinal direction that was indicated last in the buffer
-# don't forget to delete
+#velocity and direction calculations
+dot = lambda a, b: [a[0] * b[0] + a[1] * b[1]]
+add_vec = lambda a, b: [a[0] + b[0], a[1] + b[1]]
+scalar_mult = lambda a, c: [c * a[0], c * a[1]]
 
+#for snake body
+snakepos = [screen.get_width() / 2, screen.get_height() / 2 - 40]
+bodypositions = [[int(screen.get_width() / 2-cellSize), int(screen.get_height() / 2 - 40)]]
 
-
-
-
-# create a timer for move delays to hopefully keep it in 
-#pygame.time.set_timer(pygame.USEREVENT, 1000)
 
 #variables for screen changing
 in_Game = False
 title_Screen = True
+end_Screen = False
 
 
 # font stuff
 font = pygame.font.SysFont('Helvetica', 14, bold=True, italic=False)
 title = pygame.font.SysFont('Roboto', 100, True, False)
+border = False
 
 # rectangle sizes
-snakeHead = pygame.Rect((screen.get_width() / 2+5, screen.get_height() / 2 - 35),(cellSize-10, cellSize-10))
+snakeHead = pygame.Rect((snakepos[0], snakepos[1]),(cellSize, cellSize))
 apple = pygame.Rect(((r.randint(20, screen.get_width() - 27),r.randint(20, screen.get_height() - 27))),(40,40))
 
 while running:
@@ -54,19 +52,28 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+        if event.type == pygame.USEREVENT:
+            canPop = True
+
             
         if event.type == pygame.KEYDOWN:
-            endTime = timeElapsed
+            if title:
+                if (event.key == pygame.K_a or event.key == pygame.K_LEFT):
+                    border = True
+                if (event.key == pygame.K_d or event.key == pygame.K_RIGHT):
+                    border = False
+
+
             if in_Game:
                 # check for key presses to save them and change snake v later 
-                if event.key == pygame.K_w and velocity[1] != speed:
-                    direc = ['up']           
-                if event.key == pygame.K_s and velocity[1] != -speed:
-                    direc = ['down']
-                if event.key == pygame.K_a and velocity[0] != speed:
-                    direc = ['left']   
-                if event.key == pygame.K_d and velocity[0] != -speed:
-                    direc = ['right']
+                if (event.key == pygame.K_w or event.key == pygame.K_UP) and velocity[1] == 0:
+                    direc = [0,-1]
+                if (event.key == pygame.K_s or event.key == pygame.K_DOWN) and velocity[1] == 0:
+                    direc = [0, 1]
+                if (event.key == pygame.K_a or event.key == pygame.K_LEFT) and velocity[0] == 0:
+                    direc = [-1,0]
+                if (event.key == pygame.K_d or event.key == pygame.K_RIGHT) and velocity[0] == 0:
+                    direc = [1,0]
 
                         
                 # speed controls and stoping
@@ -79,7 +86,7 @@ while running:
                 if event.key == pygame.K_SPACE:
                     velocity = [0,0]
             
-            # switch to in game when enter is pressed
+            # switch to in game when space is pressed
             if title_Screen:
                 if event.key == pygame.K_SPACE:
                     title_Screen = False
@@ -94,50 +101,66 @@ while running:
     # in game code
     if in_Game:
 
-        timeElapsed += (dt*1000)
-        
+
+
         # lets set the snake's velocity, but only when it reaches a cell junction
-        if snakeHead.x % 80 == 5 and snakeHead.y % 80 == 5:
-            if direc[0] == "up":
-                velocity = [0,-speed]
-                direc = [0]
-            if direc[0] == "down":
-                velocity = [0,speed]
-                direc = [0]
-            if direc[0] == "left":
-                velocity = [-speed,0]
-                direc = [0]
-            if direc[0] == "right":
-                velocity = [speed,0]
-                direc = [0]
+        if snakeHead.x % cellSize <= 4 and snakeHead.y % cellSize <= 4: 
+            velocity = scalar_mult(direc, speed)
 
         # make the snake move depending on current velocity
-        snakeHead.x += velocity[0] #* dt
-        snakeHead.y += velocity[1] #* dt
+    
+        snakeHead.x += velocity[0] 
+        snakeHead.y += velocity[1] 
 
-        # make the snake wrap around
-        if snakeHead.x < 0 - snakeHead.width:
-            snakeHead.x = screen.get_width()
-        if snakeHead.x > screen.get_width():
-            snakeHead.x = 0 - snakeHead.width
-        if snakeHead.y > screen.get_height():
-            snakeHead.y = 0
-        if snakeHead.y < 0 - snakeHead.height:
-            snakeHead.y = screen.get_height()
+        # make the snake wrap around when border = false
+        if not border:
+            if snakeHead.x < 0 - snakeHead.width:
+                snakeHead.x = screen.get_width()-1
+            if snakeHead.x > screen.get_width():
+                snakeHead.x = 0 - snakeHead.width
+            if snakeHead.y >= screen.get_height():
+                snakeHead.y = 0 - snakeHead.height
+            if snakeHead.y < 0 - snakeHead.height:
+                snakeHead.y = screen.get_height()
       
-        # apple is gonna appear at random x and y values on collision
+
+        #on collecting an apple, spawn a new apple and stop popping the snake body ofr a bit so it can grow
         if snakeHead.colliderect(apple):
             apple.x = r.randint(20, screen.get_width() - apple.width)
             apple.y = r.randint(20, screen.get_height() - apple.height)
             appleCount += 1
+            canPop = False
+            pygame.time.set_timer(pygame.USEREVENT, 100, loops = 1)
 
-        # on collision with the apple the snake grows one cell
-        # maybe create a new rectangle each time the apple is collided
-        # same movement control as the snake head, but has to be saved for all the snake body part
-        # snake body needs to be scalable
-        # luckily all body parts have same behavior, hard part would be creating them all right after the other
-        # 
-    
+        else:
+            #if the apple has not been consumed, pop the last bit of the snake body and add to the beginning (keeps length but moves snake)
+            for i in range(bodyCountPerFrame):
+                bodypositions.insert(i, [snakeHead.x - velocity[0] / bodyCountPerFrame * i, snakeHead.y - velocity[1] / bodyCountPerFrame * i])
+            
+            if canPop:
+                for i in range(bodyCountPerFrame):
+                    bodypositions.pop()
+            
+
+
+        # kills the snake on collision with itself
+        try:
+            for i in range (80, len(bodypositions)):
+                collidable = pygame.Rect((bodypositions[i][0], bodypositions[i][1]),(cellSize, cellSize))
+                if snakeHead.colliderect(collidable):
+                    velocity = [0,0]
+                    in_Game = False
+                    end_Screen = True
+        except:
+            print('not enough bodies')
+
+        if border:
+            if (snakeHead.x <= 0) or snakeHead.x >= (screen.get_width()-cellSize) or (snakeHead.y <= 0) or snakeHead.y >= (screen.get_height()-cellSize):
+                velocity = [0,0]
+                in_Game = False
+                end_Screen = True
+
+
 
         
     
@@ -162,19 +185,41 @@ while running:
                 pygame.draw.rect(screen, (34,34,34) , (X, Y, cellSize, cellSize))
 
 
-        pygame.draw.rect(screen, "pink", snakeHead, 4)
+        #draw the snake + body parts 
+        
+        for pos in bodypositions:
+            pygame.draw.rect(screen, "green", pygame.Rect(pos[0],pos[1], cellSize, cellSize))
+        
+        pygame.draw.rect(screen, "pink", snakeHead, 10)
+        #draw apple
         pygame.draw.rect(screen, "red", apple)
+
+
 
         #write the count of apples
         screen.blit(font.render(str(appleCount), True, "white"), (screen.get_width() - 30, 30))
     
+
+
     # code for the title screen
+    if border:
+        highlight = 'yellow'
+        highlight2 = 'white'
+    else:
+        highlight2 = "yellow"
+        highlight = 'white'
+    
+    #actally displaying the screen
     if title_Screen:
         screen.fill("white")
         screen.blit(title.render("Welcome to Snake", True, "black"), ((screen.get_width()/2) -300 , screen.get_height()/2-50))
-        screen.blit(font.render("press space to continue", True, "black"), ((screen.get_width()/2) - 55, screen.get_height()/2+30))
+        screen.blit(font.render("Play with border?", True, "black"), ((screen.get_width()/2) - 95, screen.get_height()/2+30))
+        screen.blit(font.render("Yes", True, "black", highlight), ((screen.get_width()/2) + 30, screen.get_height()/2+30))
+        screen.blit(font.render("No", True, "black", highlight2), ((screen.get_width()/2) + 60, screen.get_height()/2+30))
+        screen.blit(font.render("press space to continue", True, "black"), ((screen.get_width()/2) - 55, screen.get_height()/2+50))
 
-
+    if end_Screen:
+        screen.blit(title.render("GAME OVER", True, "white"), ((screen.get_width()/2) -300 , screen.get_height()/2-50))
 
     
     # flip() the display to put your work on screen
