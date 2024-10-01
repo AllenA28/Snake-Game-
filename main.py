@@ -13,9 +13,10 @@ dt = 0
 speed = 5
 velocity = [0,0]
 appleCount = 0
-cellSize = 80
+cellSize = 40
 direc = [1,0]
 bodyCountPerFrame = 2
+growthTime = 100
 
 
 #velocity and direction calculations
@@ -41,7 +42,7 @@ border = False
 
 # rectangle sizes
 snakeHead = pygame.Rect((snakepos[0], snakepos[1]),(cellSize, cellSize))
-apple = pygame.Rect(((r.randint(20, screen.get_width() - 27),r.randint(20, screen.get_height() - 27))),(40,40))
+apple = pygame.Rect(((r.randint(20, screen.get_width() - 27),r.randint(20, screen.get_height() - 27))),(cellSize/2,cellSize/2))
 
 while running:
     # poll for events
@@ -57,9 +58,10 @@ while running:
 
             
         if event.type == pygame.KEYDOWN:
-            if title:
+            if title_Screen:
                 if (event.key == pygame.K_a or event.key == pygame.K_LEFT):
                     border = True
+                    print('BORDER IS NOW ONNNN')
                 if (event.key == pygame.K_d or event.key == pygame.K_RIGHT):
                     border = False
 
@@ -91,6 +93,21 @@ while running:
                 if event.key == pygame.K_SPACE:
                     title_Screen = False
                     in_Game = True
+
+            #restart after game ends
+            if end_Screen:
+                if event.key == pygame.K_SPACE:
+                    end_Screen = False
+                    snakepos = [screen.get_width() / 2, screen.get_height() / 2 - 40]
+                    bodypositions = [[int(screen.get_width() / 2-cellSize), int(screen.get_height() / 2 - 40)]]
+                    snakeHead = pygame.Rect((snakepos[0], snakepos[1]),(cellSize, cellSize))
+                    apple = pygame.Rect(((r.randint(20, screen.get_width() - 27),r.randint(20, screen.get_height() - 27))),(cellSize/2,cellSize/2))
+                    velocity = [0,0]
+                    appleCount = 0
+                    direc = [1,0]
+                    bodyCountPerFrame = 2
+                    title_Screen = True
+
 
 
 
@@ -126,11 +143,23 @@ while running:
 
         #on collecting an apple, spawn a new apple and stop popping the snake body ofr a bit so it can grow
         if snakeHead.colliderect(apple):
-            apple.x = r.randint(20, screen.get_width() - apple.width)
-            apple.y = r.randint(20, screen.get_height() - apple.height)
+            apple.x = r.randint(5, screen.get_width() - apple.width)
+            apple.y = r.randint(5, screen.get_height() - apple.height)
+            redo = True
+            while redo:
+                redo = False
+                for i in range (80, len(bodypositions)):
+                    collidable = pygame.Rect((bodypositions[i][0], bodypositions[i][1]),(cellSize, cellSize))
+                    if apple.colliderect(collidable) or (apple.x % cellSize != 0 ) or (apple.y % cellSize != 0):
+                        redo = True
+                        apple.x = r.randint(5, screen.get_width() - cellSize) 
+                        apple.y = r.randint(5, screen.get_height() - cellSize) 
+                        break
+            apple.x += cellSize/4
+            apple.y += cellSize/4
             appleCount += 1
             canPop = False
-            pygame.time.set_timer(pygame.USEREVENT, 100, loops = 1)
+            pygame.time.set_timer(pygame.USEREVENT, growthTime, loops = 1)
 
         else:
             #if the apple has not been consumed, pop the last bit of the snake body and add to the beginning (keeps length but moves snake)
@@ -155,10 +184,11 @@ while running:
             print('not enough bodies')
 
         if border:
-            if (snakeHead.x <= 0) or snakeHead.x >= (screen.get_width()-cellSize) or (snakeHead.y <= 0) or snakeHead.y >= (screen.get_height()-cellSize):
+            if (snakeHead.x <= -5) or snakeHead.x >= (screen.get_width()-(cellSize-5)) or (snakeHead.y <= -5) or snakeHead.y >= (screen.get_height()-(cellSize-5)):
                 velocity = [0,0]
                 in_Game = False
                 end_Screen = True
+                
 
 
 
@@ -190,7 +220,7 @@ while running:
         for pos in bodypositions:
             pygame.draw.rect(screen, "green", pygame.Rect(pos[0],pos[1], cellSize, cellSize))
         
-        pygame.draw.rect(screen, "pink", snakeHead, 10)
+        pygame.draw.rect(screen, "pink", snakeHead, int(cellSize/8))
         #draw apple
         pygame.draw.rect(screen, "red", apple)
 
@@ -216,7 +246,7 @@ while running:
         screen.blit(font.render("Play with border?", True, "black"), ((screen.get_width()/2) - 95, screen.get_height()/2+30))
         screen.blit(font.render("Yes", True, "black", highlight), ((screen.get_width()/2) + 30, screen.get_height()/2+30))
         screen.blit(font.render("No", True, "black", highlight2), ((screen.get_width()/2) + 60, screen.get_height()/2+30))
-        screen.blit(font.render("press space to continue", True, "black"), ((screen.get_width()/2) - 55, screen.get_height()/2+50))
+        screen.blit(font.render("press space to continue", True, "black"), ((screen.get_width()/2) - 80, screen.get_height()/2+50))
 
     if end_Screen:
         screen.blit(title.render("GAME OVER", True, "white"), ((screen.get_width()/2) -300 , screen.get_height()/2-50))
